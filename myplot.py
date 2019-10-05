@@ -5,17 +5,24 @@ import matplotlib.pyplot as plt
 import sys
 
 class Plot:
-    def __init__(self,figsize,n=1,sharex=True):
+    def __init__(self,figsize=None,n=1,sharex=True):
         '''
         figsize: [tuple|list] figure size (e.g. (10,8))
         n: [int] number of subplots
         '''
-        fig, ax = plt.subplots(n,figsize=figsize, sharex=sharex)
+        if figsize:
+            fig, ax = plt.subplots(n,figsize=figsize, sharex=sharex)
+            self.fig = fig
+             # convenient if only have one subplot (not ty type axes[0] all the time)
+            self.ax = ax
+            # array of all our axes; new axes get added here too (e.g. two subplots, one has 2 y axes, means in total 5 axes in the list)
+            self.axes = ax if n > 1 else [ax]
+
+
+    def add_plot(self, fig, ax):
         self.fig = fig
-         # convenient if only have one subplot (not ty type axes[0] all the time)
         self.ax = ax
-        # array of all our axes; new axes get added here too (e.g. two subplots, one has 2 y axes, means in total 5 axes in the list)
-        self.axes = ax if n > 1 else [ax]
+        self.axes = [self.ax]
 
 
     def legend(self, out=False, ncol=1):
@@ -69,7 +76,6 @@ class Plot:
 
     def figure(self, name=None):
         print name
-        self.pretty()
 
         save = 'save' in sys.argv
         if save:

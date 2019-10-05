@@ -6,16 +6,15 @@ Lmin = 0.001
 Lmax = 300
 # range in GeV
 Emin = 0.001 # to avoid division by zero
-Emax = 2
+Emax = 1.5
 
 #############################
 
-# for Pee function
-from math import cos
-# for PeePlot class
 import numpy as np
-import pandas as pd # tables
+import pandas as pd # to save tables
 from myplot import * # plotting
+from mpl_toolkits.mplot3d import Axes3D # surface plot
+from matplotlib import cm # colourbar
 
 
 def Pee(x, dct):
@@ -40,13 +39,14 @@ def Pee(x, dct):
     # the factor 1.27 is calculated s.t. L is in km and E is in GeV
     if 'E' in dct:
         delta = 1.27 * dm31 * x*1. / dct['E']
+
     elif 'L' in dct:
         delta = 1.27 * dm31 * dct['L']*1. / x
     else:
         print 'Incorrect variable, how did we get here?'
         return -1
 
-    return 1. - 0.5 * sin22theta13 * (1. - cos(delta))
+    return 1. - 0.5 * sin22theta13 * (1. - np.cos(delta))
 
 
 class PeePlot():
@@ -54,11 +54,10 @@ class PeePlot():
     Class that contains all the plotting info
     '''
 
-    def __init__(self):
+    def __init__(self, size=None):
         self.df = pd.DataFrame() # empty table
         # plot
-        self.p = Plot((10,8))
-        self.p.ax.set_title('Electron neutrino survival probability')
+        self.p = Plot((10,8)) if size else Plot()
 
 
     def plot_points(self, var, points):
@@ -75,7 +74,7 @@ class PeePlot():
         var2 = vars[0]
 
         # points for the other variable (which is on the x axis)
-        self.df[var2] = RANGE[var2]
+        self.df[var2] = var_range(var2, 1000)
 
         # Pee as a function of var2 for constant var
         for p in points:
@@ -87,11 +86,13 @@ class PeePlot():
         self.df.plot(ax = self.p.ax, style='-')
         self.p.ax.set_xlabel(LABEL[var2] + ' [' + UNIT[var2] + ']')
         self.p.ax.set_ylabel(r'$P(\nu_e \rightarrow \nu_e)$')
+        self.p.ax.set_title('Electron neutrino survival probability')
 
         self.p.legend()
 
         # output name if PNG and txt
         name = 'pee_' + var + '-'.join((str(x) for x in points)) + UNIT[var]
+        self.pretty()
         self.p.figure(name + '.png') # save or show depending on user input
 
         # save the txt file if requested
@@ -100,9 +101,35 @@ class PeePlot():
             print 'Saved to', name + '.csv'
 
 
+    def plot_3d(self):
+
+        fig = plt.figure(figsize=(10,8))
+        ax = fig.add_subplot(111, projection='3d')
+        self.p.add_plot(fig, ax)
+
+        df = pd.DataFrame({'L': var_range('L', 200), 'E': var_range('E', 200)})
+        L, E = np.meshgrid(df['L'], df['E'])
+
+        self.p.ax.plot_wireframe(L, E, Pee(L, {'E': E}), rstride=10, cstride=10)
+
+        self.p.ax.set_xlabel(LABEL['L'] + ' [' + UNIT['L'] + ']')
+        self.p.ax.set_ylabel(LABEL['E'] + ' [' + UNIT['E'] + ']')
+        self.p.ax.set_zlabel(r'$P(\nu_e \rightarrow \nu_e)$')
+        self.p.fig.tight_layout(rect=[0,0,1,0.97])
+
+        self.p.figure('surface.png')
+
+        if 'save' in sys.argv:
+            df['P'] = Pee(df['L'], {'E': df['E']})
+            df.to_csv('surface.csv', index=False)
+
+
+
 # ranges for variables of choice
-RANGE = {'L': np.linspace(Lmin, Lmax, (Lmax - Lmin) * 2000), # step of 0.005km
-        'E': np.linspace(Emin, Emax, (Emax - Emin) * 2000)} # step of 0.005GeV
+def var_range(var, npoints):
+    return np.linspace(RANGE[var][0], RANGE[var][1], npoints)
+
+RANGE = {'L': (Lmin, Lmax), 'E': (Emin, Emax)}
 
 # unit of the variable
 UNIT = {'L': 'km', 'E': 'GeV'}
